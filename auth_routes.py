@@ -1,6 +1,7 @@
-from fastapi import APIRouter
-from models import Usuario, db
-from sqlalchemy.orm import sessionmaker
+from fastapi import APIRouter, Depends
+from models import Usuario
+from dependencies import pegar_sessao
+from main import decrypt_context
 
 auth_router = APIRouter(prefix="/autenticador", tags=["Autenficação"])
 
@@ -14,24 +15,23 @@ async def autenticar():
         2 - Senha<br>
         3 - Letras maiusculas e minusculas
     """
-    Session = sessionmaker(bind=db)
-    Session = Session()
+    # Session = sessionmaker(bind=db)
+    # Session = Session()
 
-    usuario = Session.query(Usuario).first()
+    # usuario = Session.query(Usuario).first()
 
-    return{"Mensagem":f"Usuários = {usuario}"}
+    return{"Mensagem":"Acesso a rota de autenticação"}
 
 @auth_router.post("/criar_conta")
-async def criar_conta(nome:str, email:str, senha:str):
-    Session = sessionmaker(bind=db)
-    Session = Session()
+async def criar_conta(nome:str, email:str, senha:str, session = Depends(pegar_sessao)):
 
-    usuario = Session.query(Usuario).filter(Usuario.email == email).first()
+    usuario = session.query(Usuario).filter(Usuario.email == email).first()
 
     if usuario:
         return {"Mensagem" : "Ja existe um usuário com este e-mail"}
     else:
-        novo_usuario = Usuario(nome, email, usuario)
-        Session.add(novo_usuario)
-        Session.commit()
+        senha_cripto = decrypt_context.hash(senha)
+        novo_usuario = Usuario(nome, email, senha_cripto, usuario)
+        session.add(novo_usuario)
+        session.commit()
         return {"Mensagem" : "Usuário cadastrado com Sucesso"}
